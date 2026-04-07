@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Probability Model Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300..700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+/* ── TOKENS ─────────────────────────────────────────────────────── */
+:root,[data-theme="light"]{
+  --color-bg:#f7f6f2;--color-surface:#f9f8f5;--color-surface-2:#fbfbf9;
+  --color-surface-offset:#f3f0ec;--color-surface-dynamic:#e6e4df;
+  --color-divider:#dcd9d5;--color-border:#d4d1ca;
+  --color-text:#28251d;--color-text-muted:#7a7974;--color-text-faint:#bab9b4;
+  --color-primary:#01696f;--color-primary-hover:#0c4e54;
+  --color-primary-highlight:#cedcd8;
+  --color-success:#437a22;--color-blue:#006494;--color-purple:#7a39bb;
+  --color-orange:#da7101;--color-gold:#d19900;
+  --shadow-sm:0 1px 2px oklch(0.2 0.01 80/0.06);
+  --shadow-md:0 4px 12px oklch(0.2 0.01 80/0.08);
+  --shadow-lg:0 12px 32px oklch(0.2 0.01 80/0.12);
+  --radius-sm:.375rem;--radius-md:.5rem;--radius-lg:.75rem;--radius-xl:1rem;--radius-full:9999px;
+  --text-xs:clamp(.75rem,.7rem + .25vw,.875rem);
+  --text-sm:clamp(.875rem,.8rem + .35vw,1rem);
+  --text-base:clamp(1rem,.95rem + .25vw,1.125rem);
+  --text-lg:clamp(1.125rem,1rem + .75vw,1.5rem);
+  --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+  --space-1:.25rem;--space-2:.5rem;--space-3:.75rem;--space-4:1rem;
+  --space-5:1.25rem;--space-6:1.5rem;--space-8:2rem;--space-10:2.5rem;
+  --space-12:3rem;--space-16:4rem;
+  --font-body:'Inter','Helvetica Neue',sans-serif;
+  --font-mono:'JetBrains Mono','Courier New',monospace;
+  --transition:180ms cubic-bezier(0.16,1,0.3,1);
+  --chart-normal:#01696f;--chart-cdf:#da7101;
+}
+[data-theme="dark"]{
+  --color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;
+  --color-surface-offset:#1d1c1a;--color-surface-dynamic:#2d2c2a;
+  --color-divider:#262523;--color-border:#393836;
+  --color-text:#cdccca;--color-text-muted:#797876;--color-text-faint:#5a5957;
+  --color-primary:#4f98a3;--color-primary-hover:#227f8b;
+  --color-primary-highlight:#313b3b;
+  --color-success:#6daa45;--color-blue:#5591c7;--color-purple:#a86fdf;
+  --color-orange:#fdab43;--color-gold:#e8af34;
+  --shadow-sm:0 1px 2px oklch(0 0 0/.2);
+  --shadow-md:0 4px 12px oklch(0 0 0/.3);
+  --shadow-lg:0 12px 32px oklch(0 0 0/.4);
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme]){
+  --color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;
+  --color-surface-offset:#1d1c1a;--color-surface-dynamic:#2d2c2a;
+  --color-divider:#262523;--color-border:#393836;
+  --color-text:#cdccca;--color-text-muted:#797876;--color-text-faint:#5a5957;
+  --color-primary:#4f98a3;--color-primary-hover:#227f8b;
+  --color-primary-highlight:#313b3b;
+  --color-success:#6daa45;--color-blue:#5591c7;--color-purple:#a86fdf;
+  --color-orange:#fdab43;--color-gold:#e8af34;
+}}
+
+/* ── RESET & BASE ────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;scroll-behavior:smooth;}
+body{min-height:100dvh;font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text);background:var(--color-bg);line-height:1.6;}
+img,svg{display:block;max-width:100%;}
+button{cursor:pointer;background:none;border:none;font:inherit;color:inherit;}
+a,button,[role="button"],input,select{transition:color var(--transition),background var(--transition),border-color var(--transition),box-shadow var(--transition);}
+
+/* ── LAYOUT ──────────────────────────────────────────────────────── */
+.app-shell{display:grid;grid-template-rows:auto 1fr;min-height:100dvh;}
+
+/* ── HEADER ──────────────────────────────────────────────────────── */
+.top-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:var(--space-3) var(--space-6);
+  background:var(--color-surface);
+  border-bottom:1px solid var(--color-border);
+  position:sticky;top:0;z-index:100;
+}
+.logo{display:flex;align-items:center;gap:var(--space-3);}
+.logo-icon{width:32px;height:32px;flex-shrink:0;}
+.logo-text{font-size:var(--text-sm);font-weight:600;letter-spacing:-.01em;color:var(--color-text);}
+.logo-sub{font-size:var(--text-xs);color:var(--color-text-muted);font-weight:400;}
+.theme-btn{
+  width:36px;height:36px;border-radius:var(--radius-full);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--color-text-muted);
+  border:1px solid var(--color-border);
+}
+.theme-btn:hover{color:var(--color-text);background:var(--color-surface-offset);}
+
+/* ── MAIN CONTENT ────────────────────────────────────────────────── */
+.main-content{display:grid;grid-template-columns:280px 1fr;gap:0;overflow:hidden;}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────────── */
+.sidebar{
+  background:var(--color-surface);
+  border-right:1px solid var(--color-border);
+  padding:var(--space-5);
+  overflow-y:auto;
+  display:flex;flex-direction:column;gap:var(--space-5);
+}
+.sidebar-section{display:flex;flex-direction:column;gap:var(--space-3);}
+.sidebar-label{
+  font-size:var(--text-xs);font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--color-text-faint);
+}
+
+/* Distribution buttons */
+.dist-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);}
+.dist-btn{
+  padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);
+  font-size:var(--text-xs);font-weight:500;text-align:center;
+  border:1px solid var(--color-border);color:var(--color-text-muted);
+  background:var(--color-surface-2);
+}
+.dist-btn:hover{color:var(--color-text);border-color:var(--color-primary);background:var(--color-primary-highlight);}
+.dist-btn.active{color:var(--color-primary);border-color:var(--color-primary);background:var(--color-primary-highlight);font-weight:600;}
+
+/* Param controls */
+.param-list{display:flex;flex-direction:column;gap:var(--space-4);}
+.param-item{display:flex;flex-direction:column;gap:var(--space-1);}
+.param-header{display:flex;justify-content:space-between;align-items:baseline;}
+.param-name{font-size:var(--text-sm);font-weight:500;}
+.param-symbol{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--color-primary);}
+.param-value{
+  font-family:var(--font-mono);font-size:var(--text-sm);font-weight:600;
+  color:var(--color-text);background:var(--color-surface-offset);
+  padding:var(--space-1) var(--space-2);border-radius:var(--radius-sm);
+  border:1px solid var(--color-border);min-width:54px;text-align:right;
+}
+input[type=range]{
+  width:100%;height:4px;border-radius:var(--radius-full);
+  accent-color:var(--color-primary);cursor:pointer;
+  background:var(--color-surface-dynamic);
+  -webkit-appearance:none;appearance:none;
+  outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;
+  border-radius:50%;background:var(--color-primary);
+  border:2px solid var(--color-bg);box-shadow:var(--shadow-sm);
+}
+.param-range{display:flex;justify-content:space-between;}
+.param-range span{font-size:var(--text-xs);color:var(--color-text-faint);font-family:var(--font-mono);}
+
+/* Sim controls */
+.sim-row{display:flex;gap:var(--space-2);align-items:center;}
+.sim-input{
+  flex:1;padding:var(--space-2) var(--space-3);
+  border-radius:var(--radius-md);border:1px solid var(--color-border);
+  background:var(--color-surface-2);color:var(--color-text);
+  font-family:var(--font-mono);font-size:var(--text-sm);
+}
+.sim-input:focus{outline:2px solid var(--color-primary);outline-offset:2px;}
+.btn-primary{
+  padding:var(--space-2) var(--space-4);border-radius:var(--radius-md);
+  background:var(--color-primary);color:#fff;font-size:var(--text-sm);font-weight:600;
+  white-space:nowrap;
+}
+.btn-primary:hover{background:var(--color-primary-hover);}
+
+/* ── RIGHT PANEL ─────────────────────────────────────────────────── */
+.right-panel{display:flex;flex-direction:column;overflow:hidden;}
+
+/* Stats strip */
+.stats-strip{
+  display:grid;grid-template-columns:repeat(5,1fr);
+  background:var(--color-surface);
+  border-bottom:1px solid var(--color-border);
+}
+.stat-cell{
+  padding:var(--space-3) var(--space-4);
+  border-right:1px solid var(--color-border);
+  display:flex;flex-direction:column;gap:var(--space-1);
+}
+.stat-cell:last-child{border-right:none;}
+.stat-label{font-size:var(--text-xs);color:var(--color-text-muted);font-weight:500;letter-spacing:.02em;}
+.stat-value{font-family:var(--font-mono);font-size:var(--text-lg);font-weight:600;color:var(--color-text);line-height:1.2;}
+.stat-desc{font-size:var(--text-xs);color:var(--color-text-faint);}
+
+/* Chart area */
+.chart-area{
+  flex:1;padding:var(--space-5) var(--space-6);
+  display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:var(--space-5);
+  overflow-y:auto;
+}
+.chart-card{
+  background:var(--color-surface);border:1px solid var(--color-border);
+  border-radius:var(--radius-lg);padding:var(--space-4);
+  display:flex;flex-direction:column;gap:var(--space-3);
+  box-shadow:var(--shadow-sm);
+}
+.chart-card.full-width{grid-column:1/-1;}
+.chart-title{font-size:var(--text-sm);font-weight:600;color:var(--color-text);}
+.chart-subtitle{font-size:var(--text-xs);color:var(--color-text-muted);}
+.chart-wrap{position:relative;flex:1;min-height:200px;}
+
+/* Formula card */
+.formula-card{
+  background:var(--color-surface);border:1px solid var(--color-border);
+  border-radius:var(--radius-lg);padding:var(--space-4) var(--space-5);
+  grid-column:1/-1;
+  display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);
+}
+.formula-block{display:flex;flex-direction:column;gap:var(--space-2);}
+.formula-block-title{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-faint);font-weight:600;}
+.formula-eq{
+  font-family:var(--font-mono);font-size:var(--text-sm);
+  color:var(--color-primary);background:var(--color-surface-offset);
+  padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);
+  border:1px solid var(--color-border);line-height:1.8;word-break:break-word;
+}
+.formula-desc{font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.6;}
+
+/* Histogram (simulation) card */
+.hist-card{
+  background:var(--color-surface);border:1px solid var(--color-border);
+  border-radius:var(--radius-lg);padding:var(--space-4);
+  grid-column:1/-1;display:none;flex-direction:column;gap:var(--space-3);
+  box-shadow:var(--shadow-sm);
+}
+.hist-card.visible{display:flex;}
+.hist-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:var(--space-2);}
+.badge{
+  font-size:var(--text-xs);font-weight:600;
+  padding:2px var(--space-2);border-radius:var(--radius-full);
+  background:var(--color-success);color:#fff;font-family:var(--font-mono);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--color-border);border-radius:var(--radius-full);}
+::-webkit-scrollbar-thumb:hover{background:var(--color-text-faint);}
+
+/* Mobile */
+@media(max-width:768px){
+  .main-content{grid-template-columns:1fr;grid-template-rows:auto 1fr;}
+  .sidebar{max-height:340px;overflow-y:auto;}
+  .stats-strip{grid-template-columns:repeat(3,1fr);flex-wrap:wrap;}
+  .stat-cell:nth-child(4){border-top:1px solid var(--color-border);}
+  .stat-cell:nth-child(5){border-top:1px solid var(--color-border);border-right:none;}
+  .chart-area{grid-template-columns:1fr;padding:var(--space-4);}
+  .formula-card{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- TOP BAR -->
+<header class="top-bar">
+  <div class="logo">
+    <svg class="logo-icon" viewBox="0 0 32 32" fill="none" aria-label="ProbX logo">
+      <rect width="32" height="32" rx="8" fill="var(--color-primary)" opacity=".15"/>
+      <path d="M6 22 Q10 8 16 14 Q22 20 26 10" stroke="var(--color-primary)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+      <circle cx="6" cy="22" r="2.5" fill="var(--color-primary)"/>
+      <circle cx="16" cy="14" r="2.5" fill="var(--color-primary)"/>
+      <circle cx="26" cy="10" r="2.5" fill="var(--color-primary)"/>
+    </svg>
+    <div>
+      <div class="logo-text">ProbX</div>
+      <div class="logo-sub">Probability Model Explorer</div>
+    </div>
+  </div>
+  <button class="theme-btn" data-theme-toggle aria-label="Toggle theme">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+</header>
+
+<!-- MAIN -->
+<div class="main-content">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Distribution</div>
+      <div class="dist-grid">
+        <button class="dist-btn active" data-dist="normal">Normal</button>
+        <button class="dist-btn" data-dist="binomial">Binomial</button>
+        <button class="dist-btn" data-dist="poisson">Poisson</button>
+        <button class="dist-btn" data-dist="uniform">Uniform</button>
+        <button class="dist-btn" data-dist="exponential">Exponential</button>
+        <button class="dist-btn" data-dist="beta">Beta</button>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Parameters</div>
+      <div class="param-list" id="param-list"><!-- injected by JS --></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Monte Carlo Simulation</div>
+      <div class="sim-row">
+        <input class="sim-input" id="sim-n" type="number" value="1000" min="100" max="50000" step="100">
+        <button class="btn-primary" id="sim-btn">Run</button>
+      </div>
+      <div style="font-size:var(--text-xs);color:var(--color-text-faint);">Samples to generate</div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:auto;">
+      <div style="font-size:var(--text-xs);color:var(--color-text-faint);line-height:1.7;padding:var(--space-3);background:var(--color-surface-2);border-radius:var(--radius-md);border:1px solid var(--color-border);">
+        <strong style="color:var(--color-text-muted);">Tip:</strong> Adjust sliders to see how parameters change the distribution shape in real-time.
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    <!-- STATS STRIP -->
+    <div class="stats-strip">
+      <div class="stat-cell">
+        <div class="stat-label">Mean (μ)</div>
+        <div class="stat-value" id="stat-mean">—</div>
+        <div class="stat-desc">Expected value</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Variance (σ²)</div>
+        <div class="stat-value" id="stat-var">—</div>
+        <div class="stat-desc">Spread²</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Std Dev (σ)</div>
+        <div class="stat-value" id="stat-std">—</div>
+        <div class="stat-desc">Spread</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Skewness</div>
+        <div class="stat-value" id="stat-skew">—</div>
+        <div class="stat-desc">Asymmetry</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Kurtosis</div>
+        <div class="stat-value" id="stat-kurt">—</div>
+        <div class="stat-desc">Tail weight</div>
+      </div>
+    </div>
+
+    <!-- CHARTS + FORMULA -->
+    <div class="chart-area">
+
+      <!-- PDF/PMF chart -->
+      <div class="chart-card">
+        <div>
+          <div class="chart-title" id="pdf-title">Probability Density Function</div>
+          <div class="chart-subtitle" id="pdf-subtitle">f(x) — likelihood at each value</div>
+        </div>
+        <div class="chart-wrap"><canvas id="pdf-chart"></canvas></div>
+      </div>
+
+      <!-- CDF chart -->
+      <div class="chart-card">
+        <div>
+          <div class="chart-title">Cumulative Distribution Function</div>
+          <div class="chart-subtitle">F(x) = P(X ≤ x)</div>
+        </div>
+        <div class="chart-wrap"><canvas id="cdf-chart"></canvas></div>
+      </div>
+
+      <!-- Formula card -->
+      <div class="formula-card" id="formula-card">
+        <div class="formula-block">
+          <div class="formula-block-title">PDF / PMF Formula</div>
+          <div class="formula-eq" id="formula-pdf">—</div>
+          <div class="formula-desc" id="formula-support">—</div>
+        </div>
+        <div class="formula-block">
+          <div class="formula-block-title">Key Properties</div>
+          <div class="formula-eq" id="formula-props" style="font-size:var(--text-xs);">—</div>
+        </div>
+      </div>
+
+      <!-- Simulation histogram -->
+      <div class="hist-card" id="hist-card">
+        <div class="hist-header">
+          <div>
+            <div class="chart-title">Monte Carlo Simulation</div>
+            <div class="chart-subtitle" id="sim-subtitle">Empirical distribution of samples</div>
+          </div>
+          <div class="badge" id="sim-badge">0 samples</div>
+        </div>
+        <div class="chart-wrap" style="min-height:220px;"><canvas id="hist-chart"></canvas></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ─── DISTRIBUTION DEFINITIONS ──────────────────────────────────── */
+const DISTS = {
+  normal:{
+    name:'Normal',
+    params:[
+      {id:'mu',   label:'Mean',     symbol:'μ', min:-10, max:10, step:.1, default:0},
+      {id:'sigma',label:'Std Dev',  symbol:'σ', min:.1,  max:8,  step:.1, default:1},
+    ],
+    pdfTitle:'Probability Density Function',
+    pdfSub:'f(x) — continuous probability density',
+    continuous:true,
+    xRange:(p)=>[p.mu-4*p.sigma, p.mu+4*p.sigma],
+    pdf:(x,p)=>(1/(p.sigma*Math.sqrt(2*Math.PI)))*Math.exp(-.5*((x-p.mu)/p.sigma)**2),
+    cdf:(x,p)=>.5*(1+erf((x-p.mu)/(p.sigma*Math.sqrt(2)))),
+    mean:(p)=>p.mu, variance:(p)=>p.sigma**2,
+    skewness:()=>0, kurtosis:()=>3,
+    formulaPDF:'f(x) = (1/(σ√(2π))) · exp(-(x-μ)²/(2σ²))',
+    support:'Support: x ∈ (-∞, +∞)',
+    props:'Mean = μ\nVariance = σ²\nSkewness = 0\nKurtosis = 3 (mesokurtic)\nEntropy = ½ ln(2πeσ²)',
+    sample:(p)=>boxMuller(p.mu, p.sigma),
+  },
+  binomial:{
+    name:'Binomial',
+    params:[
+      {id:'n', label:'Trials',      symbol:'n', min:1,  max:50, step:1,  default:10},
+      {id:'p', label:'Probability', symbol:'p', min:.01,max:.99,step:.01,default:.5},
+    ],
+    pdfTitle:'Probability Mass Function',
+    pdfSub:'P(X=k) — discrete probability at k',
+    continuous:false,
+    xRange:(p)=>[0,p.n],
+    pdf:(x,p)=>binom(p.n,x)*(p.p**x)*((1-p.p)**(p.n-x)),
+    cdf:(x,p)=>{let s=0;for(let k=0;k<=x;k++)s+=binom(p.n,k)*(p.p**k)*((1-p.p)**(p.n-k));return s;},
+    mean:(p)=>p.n*p.p, variance:(p)=>p.n*p.p*(1-p.p),
+    skewness:(p)=>(1-2*p.p)/Math.sqrt(p.n*p.p*(1-p.p)),
+    kurtosis:(p)=>3+(1-6*p.p*(1-p.p))/(p.n*p.p*(1-p.p)),
+    formulaPDF:'P(X=k) = C(n,k) · pᵏ · (1-p)ⁿ⁻ᵏ',
+    support:'Support: k ∈ {0, 1, 2, ..., n}',
+    props:'Mean = np\nVariance = np(1-p)\nSkewness = (1-2p)/√(np(1-p))\nSpecial: Bernoulli when n=1',
+    sample:(p)=>{let s=0;for(let i=0;i<p.n;i++)if(Math.random()<p.p)s++;return s;},
+  },
+  poisson:{
+    name:'Poisson',
+    params:[
+      {id:'lambda',label:'Rate', symbol:'λ', min:.1, max:20, step:.1, default:3},
+    ],
+    pdfTitle:'Probability Mass Function',
+    pdfSub:'P(X=k) — events in fixed interval',
+    continuous:false,
+    xRange:(p)=>[0,Math.min(50,Math.ceil(p.lambda+5*Math.sqrt(p.lambda)))],
+    pdf:(x,p)=>(Math.exp(-p.lambda)*p.lambda**x)/factorial(x),
+    cdf:(x,p)=>{let s=0;for(let k=0;k<=x;k++)s+=(Math.exp(-p.lambda)*p.lambda**k)/factorial(k);return s;},
+    mean:(p)=>p.lambda, variance:(p)=>p.lambda,
+    skewness:(p)=>1/Math.sqrt(p.lambda), kurtosis:(p)=>3+1/p.lambda,
+    formulaPDF:'P(X=k) = (λᵏ · e⁻λ) / k!',
+    support:'Support: k ∈ {0, 1, 2, ...}',
+    props:'Mean = λ\nVariance = λ\nSkewness = 1/√λ\nMemoryless for inter-arrival times',
+    sample:(p)=>{// Knuth algorithm
+      let L=Math.exp(-p.lambda),k=0,prob=1;
+      do{k++;prob*=Math.random();}while(prob>L);
+      return k-1;
+    },
+  },
+  uniform:{
+    name:'Uniform',
+    params:[
+      {id:'a',label:'Min', symbol:'a', min:-10, max:9,  step:.5, default:0},
+      {id:'b',label:'Max', symbol:'b', min:-9,  max:10, step:.5, default:5},
+    ],
+    pdfTitle:'Probability Density Function',
+    pdfSub:'f(x) — equal probability density on [a,b]',
+    continuous:true,
+    xRange:(p)=>[p.a-(p.b-p.a)*.2, p.b+(p.b-p.a)*.2],
+    pdf:(x,p)=>(x>=p.a&&x<=p.b)&&p.b>p.a?1/(p.b-p.a):0,
+    cdf:(x,p)=>p.b<=p.a?0:x<=p.a?0:x>=p.b?1:(x-p.a)/(p.b-p.a),
+    mean:(p)=>(p.a+p.b)/2, variance:(p)=>(p.b-p.a)**2/12,
+    skewness:()=>0, kurtosis:()=>1.8,
+    formulaPDF:'f(x) = 1/(b-a)  for a ≤ x ≤ b\nf(x) = 0         otherwise',
+    support:'Support: x ∈ [a, b]',
+    props:'Mean = (a+b)/2\nVariance = (b-a)²/12\nSkewness = 0\nEntropy = ln(b-a)',
+    sample:(p)=>p.a+Math.random()*(p.b-p.a),
+  },
+  exponential:{
+    name:'Exponential',
+    params:[
+      {id:'lambda',label:'Rate', symbol:'λ', min:.1, max:5, step:.05, default:1},
+    ],
+    pdfTitle:'Probability Density Function',
+    pdfSub:'f(x) — time between Poisson events',
+    continuous:true,
+    xRange:(p)=>[0, 6/p.lambda],
+    pdf:(x,p)=>x>=0?p.lambda*Math.exp(-p.lambda*x):0,
+    cdf:(x,p)=>x>=0?1-Math.exp(-p.lambda*x):0,
+    mean:(p)=>1/p.lambda, variance:(p)=>1/(p.lambda**2),
+    skewness:()=>2, kurtosis:()=>9,
+    formulaPDF:'f(x) = λ · e⁻λˣ  for x ≥ 0',
+    support:'Support: x ∈ [0, +∞)',
+    props:'Mean = 1/λ\nVariance = 1/λ²\nSkewness = 2\nMemoryless property: P(X>s+t|X>s)=P(X>t)',
+    sample:(p)=>-Math.log(Math.random())/p.lambda,
+  },
+  beta:{
+    name:'Beta',
+    params:[
+      {id:'alpha',label:'Alpha', symbol:'α', min:.1, max:10, step:.1, default:2},
+      {id:'beta', label:'Beta',  symbol:'β', min:.1, max:10, step:.1, default:5},
+    ],
+    pdfTitle:'Probability Density Function',
+    pdfSub:'f(x) — bounded [0,1] distribution',
+    continuous:true,
+    xRange:()=>[0,1],
+    pdf:(x,p)=>x<=0||x>=1?0:Math.pow(x,p.alpha-1)*Math.pow(1-x,p.beta-1)/betaFn(p.alpha,p.beta),
+    cdf:(x,p)=>incompleteBeta(x,p.alpha,p.beta),
+    mean:(p)=>p.alpha/(p.alpha+p.beta),
+    variance:(p)=>p.alpha*p.beta/((p.alpha+p.beta)**2*(p.alpha+p.beta+1)),
+    skewness:(p)=>2*(p.beta-p.alpha)*Math.sqrt(p.alpha+p.beta+1)/((p.alpha+p.beta+2)*Math.sqrt(p.alpha*p.beta)),
+    kurtosis:(p)=>3+6*((p.alpha-p.beta)**2*(p.alpha+p.beta+1)-p.alpha*p.beta*(p.alpha+p.beta+2))/(p.alpha*p.beta*(p.alpha+p.beta+2)*(p.alpha+p.beta+3)),
+    formulaPDF:'f(x) = xᵅ⁻¹(1-x)ᵝ⁻¹ / B(α,β)',
+    support:'Support: x ∈ (0, 1)',
+    props:'Mean = α/(α+β)\nVariance = αβ/((α+β)²(α+β+1))\nUsed as prior for probability p\nConjugate prior for Binomial',
+    sample:(p)=>{
+      const a=gammaSample(p.alpha),b=gammaSample(p.beta);
+      return a/(a+b);
+    },
+  },
+};
+
+/* ─── MATH HELPERS ────────────────────────────────────────────────── */
+function erf(x){
+  const a1=.254829592,a2=-.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=.3275911;
+  const sign=x<0?-1:1;x=Math.abs(x);
+  const t=1/(1+p*x);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return sign*y;
+}
+function binom(n,k){
+  if(k<0||k>n)return 0;
+  let r=1;
+  for(let i=0;i<Math.min(k,n-k);i++){r*=(n-i);r/=(i+1);}
+  return r;
+}
+const factCache={};
+function factorial(n){
+  n=Math.floor(n);if(n<=1)return 1;
+  if(factCache[n])return factCache[n];
+  return factCache[n]=n*factorial(n-1);
+}
+function boxMuller(mu,sigma){
+  const u=1-Math.random(),v=Math.random();
+  return mu+sigma*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+function gammaSample(shape){
+  if(shape<1){
+    const u=Math.random();
+    return gammaSample(1+shape)*Math.pow(u,1/shape);
+  }
+  const d=shape-1/3,c=1/Math.sqrt(9*d);
+  for(;;){
+    let x,v;
+    do{x=boxMuller(0,1);v=1+c*x;}while(v<=0);
+    v=v*v*v;
+    const u=Math.random();
+    if(u<1-.0331*(x*x)*(x*x))return d*v;
+    if(Math.log(u)<.5*x*x+d*(1-v+Math.log(v)))return d*v;
+  }
+}
+function betaFn(a,b){return Math.exp(logGamma(a)+logGamma(b)-logGamma(a+b));}
+function logGamma(x){
+  const c=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,.1208650973866179e-2,-.5395239384953e-5];
+  let s=1.000000000190015;
+  for(let j=0;j<6;j++)s+=c[j]/(x+j+1);
+  return(x+.5)*Math.log(x+5.5)-(x+5.5)+Math.log(2.5066282746310005*s/x);
+}
+function incompleteBeta(x,a,b){
+  if(x<=0)return 0;if(x>=1)return 1;
+  const bt=Math.exp(a*Math.log(x)+b*Math.log(1-x)+logGamma(a+b)-logGamma(a)-logGamma(b));
+  if(x<(a+1)/(a+b+2))return bt*betaCF(a,b,x)/a;
+  return 1-bt*betaCF(b,a,1-x)/b;
+}
+function betaCF(a,b,x){
+  const MAXIT=200,EPS=3e-7,FPMIN=1e-30;
+  let qab=a+b,qap=a+1,qam=a-1,c=1,d=1-qab*x/qap;
+  if(Math.abs(d)<FPMIN)d=FPMIN;d=1/d;let h=d;
+  for(let m=1;m<=MAXIT;m++){
+    let m2=2*m,aa=m*(b-m)*x/((qam+m2)*(a+m2));
+    d=1+aa*d;if(Math.abs(d)<FPMIN)d=FPMIN;c=1+aa/c;if(Math.abs(c)<FPMIN)c=FPMIN;
+    d=1/d;h*=d*c;aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));
+    d=1+aa*d;if(Math.abs(d)<FPMIN)d=FPMIN;c=1+aa/c;if(Math.abs(c)<FPMIN)c=FPMIN;
+    d=1/d;const del=d*c;h*=del;if(Math.abs(del-1)<EPS)break;
+  }
+  return h;
+}
+function fmt(v,d=4){if(!isFinite(v))return'∞';return +v.toFixed(d);}
+
+/* ─── STATE ───────────────────────────────────────────────────────── */
+let currentDist='normal';
+let params={mu:0,sigma:1};
+let pdfChart=null,cdfChart=null,histChart=null;
+let simSamples=[];
+
+/* ─── CHART COLOR HELPERS ─────────────────────────────────────────── */
+function chartColors(){
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark'||
+    (!document.documentElement.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme:dark)').matches);
+  return{
+    grid:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.07)',
+    tick:isDark?'#797876':'#7a7974',
+    label:isDark?'#cdccca':'#28251d',
+    pdfFill:isDark?'rgba(79,152,163,0.25)':'rgba(1,105,111,0.15)',
+    pdfLine:isDark?'#4f98a3':'#01696f',
+    cdfFill:isDark?'rgba(253,171,67,0.2)':'rgba(218,113,1,0.12)',
+    cdfLine:isDark?'#fdab43':'#da7101',
+    histFill:isDark?'rgba(168,111,223,0.5)':'rgba(122,57,187,0.35)',
+    histLine:isDark?'#a86fdf':'#7a39bb',
+  };
+}
+function commonChartOpts(c){
+  return{
+    responsive:true,maintainAspectRatio:false,
+    animation:{duration:250},
+    plugins:{legend:{display:false},tooltip:{callbacks:{
+      title:ctx=>`x = ${(+ctx[0].label).toFixed(4)||ctx[0].label}`,
+      label:ctx=>`y = ${ctx.parsed.y.toFixed(5)}`
+    },backgroundColor:'var(--color-surface-2)',titleColor:'var(--color-text)',
+      bodyColor:'var(--color-text-muted)',borderColor:'var(--color-border)',borderWidth:1,
+      padding:8,cornerRadius:6}},
+    scales:{
+      x:{grid:{color:c.grid},ticks:{color:c.tick,maxTicksLimit:8,font:{size:11}},border:{color:c.grid}},
+      y:{grid:{color:c.grid},ticks:{color:c.tick,maxTicksLimit:6,font:{size:11}},border:{color:c.grid}},
+    }
+  };
+}
+
+/* ─── RENDER DIST ─────────────────────────────────────────────────── */
+function renderDist(){
+  const d=DISTS[currentDist];
+  const c=chartColors();
+  const p=params;
+
+  /* build x values */
+  const[xmin,xmax]=d.xRange(p);
+  const N=d.continuous?200:Math.min(51,xmax-xmin+1);
+  const xs=[];
+  if(d.continuous){
+    for(let i=0;i<=N;i++)xs.push(xmin+(xmax-xmin)*i/N);
+  } else {
+    for(let k=xmin;k<=xmax;k++)xs.push(k);
+  }
+  const pdfVals=xs.map(x=>d.pdf(x,p));
+  const cdfVals=xs.map(x=>d.cdf(x,p));
+
+  /* stats */
+  const mu=d.mean(p),vr=d.variance(p),sk=d.skewness(p),ku=d.kurtosis(p);
+  document.getElementById('stat-mean').textContent=fmt(mu);
+  document.getElementById('stat-var').textContent=fmt(vr);
+  document.getElementById('stat-std').textContent=fmt(Math.sqrt(vr));
+  document.getElementById('stat-skew').textContent=fmt(sk);
+  document.getElementById('stat-kurt').textContent=fmt(ku);
+
+  /* formula */
+  document.getElementById('formula-pdf').textContent=d.formulaPDF;
+  document.getElementById('formula-support').textContent=d.support;
+  document.getElementById('formula-props').textContent=d.props;
+  document.getElementById('pdf-title').textContent=d.pdfTitle;
+  document.getElementById('pdf-subtitle').textContent=d.pdfSub;
+
+  /* PDF/PMF chart */
+  const pdfCtx=document.getElementById('pdf-chart').getContext('2d');
+  if(pdfChart)pdfChart.destroy();
+  pdfChart=new Chart(pdfCtx,{
+    type:d.continuous?'line':'bar',
+    data:{
+      labels:xs.map(x=>+x.toFixed(4)),
+      datasets:[{
+        data:pdfVals,
+        borderColor:c.pdfLine,
+        backgroundColor:c.pdfFill,
+        borderWidth:d.continuous?2:1,
+        pointRadius:0,fill:true,
+        tension:0.4,
+        barPercentage:0.8,
+        categoryPercentage:1.0,
+      }]
+    },
+    options:{...commonChartOpts(c)}
+  });
+
+  /* CDF chart */
+  const cdfCtx=document.getElementById('cdf-chart').getContext('2d');
+  if(cdfChart)cdfChart.destroy();
+  cdfChart=new Chart(cdfCtx,{
+    type:d.continuous?'line':'line',
+    data:{
+      labels:xs.map(x=>+x.toFixed(4)),
+      datasets:[{
+        data:cdfVals,
+        borderColor:c.cdfLine,
+        backgroundColor:c.cdfFill,
+        borderWidth:2,pointRadius:d.continuous?0:3,
+        pointBackgroundColor:c.cdfLine,
+        fill:true,tension:d.continuous?0.3:0,stepped:!d.continuous?'before':false,
+      }]
+    },
+    options:{...commonChartOpts(c),
+      scales:{...commonChartOpts(c).scales,
+        y:{...commonChartOpts(c).scales.y,min:0,max:1}
+      }
+    }
+  });
+}
+
+/* ─── SIMULATION ──────────────────────────────────────────────────── */
+function runSimulation(){
+  const d=DISTS[currentDist];
+  const p=params;
+  const n=Math.min(50000,Math.max(100,parseInt(document.getElementById('sim-n').value)||1000));
+  simSamples=Array.from({length:n},()=>d.sample(p));
+
+  const histCard=document.getElementById('hist-card');
+  histCard.classList.add('visible');
+  document.getElementById('sim-badge').textContent=`${n.toLocaleString()} samples`;
+  document.getElementById('sim-subtitle').textContent=
+    `Empirical mean: ${(simSamples.reduce((a,b)=>a+b,0)/n).toFixed(4)} — Empirical std: ${stdDev(simSamples).toFixed(4)}`;
+
+  /* histogram buckets */
+  const[xmin,xmax]=d.xRange(p);
+  const numBins=d.continuous?50:Math.min(50,(xmax-xmin+1));
+  const bins=Array(numBins).fill(0);
+  const binW=(xmax-xmin)/numBins;
+  const labels=[];
+  for(let i=0;i<numBins;i++)labels.push((xmin+i*binW).toFixed(3));
+  simSamples.forEach(v=>{
+    let bi=Math.floor((v-xmin)/binW);
+    bi=Math.max(0,Math.min(numBins-1,bi));
+    bins[bi]++;
+  });
+  const densities=bins.map(b=>b/(n*binW));
+
+  const c=chartColors();
+  const histCtx=document.getElementById('hist-chart').getContext('2d');
+  if(histChart)histChart.destroy();
+  histChart=new Chart(histCtx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'Empirical Density',
+        data:densities,
+        backgroundColor:c.histFill,
+        borderColor:c.histLine,
+        borderWidth:1,
+        barPercentage:1.0,categoryPercentage:1.0,
+      }]
+    },
+    options:{
+      ...commonChartOpts(c),
+      plugins:{...commonChartOpts(c).plugins,
+        tooltip:{callbacks:{
+          title:ctx=>`x ≈ ${ctx[0].label}`,
+          label:ctx=>`density = ${ctx.parsed.y.toFixed(5)}`
+        },backgroundColor:'var(--color-surface-2)',titleColor:'var(--color-text)',
+          bodyColor:'var(--color-text-muted)',borderColor:'var(--color-border)',borderWidth:1,
+          padding:8,cornerRadius:6}},
+    }
+  });
+}
+
+function stdDev(arr){
+  const m=arr.reduce((a,b)=>a+b,0)/arr.length;
+  return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length);
+}
+
+/* ─── PARAM PANEL ─────────────────────────────────────────────────── */
+function buildParamPanel(){
+  const d=DISTS[currentDist];
+  const list=document.getElementById('param-list');
+  list.innerHTML='';
+  params={};
+  d.params.forEach(param=>{
+    params[param.id]=param.default;
+    const el=document.createElement('div');
+    el.className='param-item';
+    el.innerHTML=`
+      <div class="param-header">
+        <span class="param-name">${param.label} <span class="param-symbol">(${param.symbol})</span></span>
+        <span class="param-value" id="val-${param.id}">${param.default}</span>
+      </div>
+      <input type="range" id="slider-${param.id}"
+        min="${param.min}" max="${param.max}" step="${param.step}" value="${param.default}">
+      <div class="param-range">
+        <span>${param.min}</span><span>${param.max}</span>
+      </div>`;
+    list.appendChild(el);
+    el.querySelector('input').addEventListener('input',e=>{
+      const v=parseFloat(e.target.value);
+      params[param.id]=v;
+      /* special guard: uniform a<b */
+      if(currentDist==='uniform'){
+        if(param.id==='a'&&v>=params.b)params.b=v+.5;
+        if(param.id==='b'&&v<=params.a)params.a=v-.5;
+      }
+      document.getElementById(`val-${param.id}`).textContent=v;
+      renderDist();
+    });
+  });
+}
+
+/* ─── DISTRIBUTION SWITCHER ───────────────────────────────────────── */
+document.querySelectorAll('.dist-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.dist-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDist=btn.dataset.dist;
+    document.getElementById('hist-card').classList.remove('visible');
+    simSamples=[];
+    buildParamPanel();
+    renderDist();
+  });
+});
+
+/* ─── SIMULATION BUTTON ───────────────────────────────────────────── */
+document.getElementById('sim-btn').addEventListener('click',runSimulation);
+
+/* ─── THEME TOGGLE ────────────────────────────────────────────────── */
+(function(){
+  const t=document.querySelector('[data-theme-toggle]'),r=document.documentElement;
+  let d=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+  r.setAttribute('data-theme',d);
+  t&&t.addEventListener('click',()=>{
+    d=d==='dark'?'light':'dark';
+    r.setAttribute('data-theme',d);
+    t.setAttribute('aria-label','Toggle theme');
+    t.innerHTML=d==='dark'
+      ?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+      :'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+    /* re-render charts with new colors */
+    renderDist();
+    if(simSamples.length>0)runSimulation();
+  });
+})();
+
+/* ─── INIT ─────────────────────────────────────────────────────────── */
+buildParamPanel();
+renderDist();
+</script>
+</body>
+</html>
